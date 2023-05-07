@@ -13,7 +13,7 @@ impl Matrix {
     /// Confirms that all inner vectors are of the same size
     /// i.e columns are the same size
     /// Returns and error if not the same
-    fn new(values: Vec<Vec<f64>>) -> Result<Self, String> {
+    pub(crate) fn new(values: Vec<Vec<f64>>) -> Result<Self, String> {
         let column = values.get(0).map(|a| a.len()).unwrap_or(0);
 
         let columns_not_equal = values.iter().any(|a| a.len() != column);
