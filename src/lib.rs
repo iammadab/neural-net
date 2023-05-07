@@ -70,7 +70,6 @@ impl NeuralNetwork {
 
     /// Sigmoid function
     fn sigmoid(input: &f64) -> f64 {
-        dbg!(input);
         1.0 / (1.0 + f64::exp(-input))
     }
 }
@@ -109,19 +108,38 @@ mod test {
 
     #[test]
     fn feed_forward() {
+        // Two layers
         let network = NeuralNetwork::new_with_weights(
             vec![2, 2],
             vec![Matrix::new(vec![vec![0.9, 0.3], vec![0.2, 0.8]]).unwrap()],
         )
         .unwrap();
         let output = network.feed_forward(vec![1.0, 0.5]);
-        dbg!(&output);
         assert_eq!(output, vec![0.740774899182154, 0.6456563062257954]);
+
+        // Three layer
+        let network = NeuralNetwork::new_with_weights(
+            vec![3, 3, 3],
+            vec![
+                Matrix::new(vec![
+                    vec![0.9, 0.3, 0.4],
+                    vec![0.2, 0.8, 0.2],
+                    vec![0.1, 0.5, 0.6],
+                ])
+                .unwrap(),
+                Matrix::new(vec![
+                    vec![0.3, 0.7, 0.5],
+                    vec![0.6, 0.5, 0.2],
+                    vec![0.8, 0.1, 0.9],
+                ])
+                .unwrap(),
+            ],
+        )
+        .unwrap();
+        let output = network.feed_forward(vec![0.9, 0.1, 0.8]);
+        assert_eq!(
+            output,
+            vec![0.7263033450139793, 0.7085980724248232, 0.778097059561142,]
+        );
     }
 }
-
-// we can have a matrix or we can have a vector
-// is there a way to unify them?
-// Vec or Vec
-// can multiply a matrix by another matrix
-// should just work
