@@ -68,6 +68,13 @@ impl NeuralNetwork {
         output_vector.transpose().get_row(0)
     }
 
+    fn train(&self, input: Vec<f64>, target: Vec<f64>, learning_rate: f64) {
+        // TODO: need to perform a paper example or error propagation so we can test
+        //  use 3 layer test with 3 nodes each
+        //  take learning rate into account also
+        todo!()
+    }
+
     /// Sigmoid function
     fn sigmoid(input: &f64) -> f64 {
         1.0 / (1.0 + f64::exp(-input))
