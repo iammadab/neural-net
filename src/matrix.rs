@@ -1,15 +1,15 @@
 struct Matrix {
     row: usize,
     column: usize,
-    values: Vec<Vec<i64>>,
+    values: Vec<Vec<f64>>,
 }
 
 impl Matrix {
-    /// Creates a matrix from of Vec<Vec<i64>> + validation
+    /// Creates a matrix from of Vec<Vec<f64>> + validation
     /// Confirms that all inner vectors are of the same size
     /// i.e columns are the same size
     /// Returns and error if not the same
-    fn new(values: Vec<Vec<i64>>) -> Result<Self, String> {
+    fn new(values: Vec<Vec<f64>>) -> Result<Self, String> {
         let column = values.get(0).map(|a| a.len()).unwrap_or(0);
 
         let columns_not_equal = values.iter().any(|a| a.len() != column);
@@ -28,7 +28,7 @@ impl Matrix {
 
     /// Given the row and column count, initializes a matrix
     /// of that size and sets the elements to the given value
-    fn with_value(row: usize, column: usize, value: i64) -> Self {
+    fn with_value(row: usize, column: usize, value: f64) -> Self {
         let values = (0..row).map(|_| vec![value; column]).collect();
         Self {
             row,
@@ -40,33 +40,33 @@ impl Matrix {
     /// Given the row and column count, initializes a matrix
     /// of that size with just 0 values
     fn zeros(row: usize, column: usize) -> Self {
-        Matrix::with_value(row, column, 0)
+        Matrix::with_value(row, column, 0.0)
     }
 
     /// Given two vectors of the same size calculates the dot product
     /// Leaves vector length validation to the matrix struct
     /// hence: this method should not be made public
-    fn vector_dot_product(a: &[i64], b: &[i64]) -> i64 {
+    fn vector_dot_product(a: &[f64], b: &[f64]) -> f64 {
         // assumes a and b are of the same size
         a.iter().zip(b.iter()).map(|(v1, v2)| v1 * v2).sum()
     }
 
     /// Return the nth row of a matrix as a vector
-    fn get_row(&self, index: usize) -> Vec<i64> {
+    fn get_row(&self, index: usize) -> Vec<f64> {
         self.values[index].clone()
     }
 
     /// Return all the row vectors
-    fn get_rows(&self) -> Vec<Vec<i64>> {
+    fn get_rows(&self) -> Vec<Vec<f64>> {
         self.values.clone()
     }
 
     /// Return the nth column of a matrix as a vector
-    fn get_column(&self, index: usize) -> Vec<i64> {
+    fn get_column(&self, index: usize) -> Vec<f64> {
         self.values.iter().map(|row| row[index]).collect()
     }
 
-    fn get_columns(&self) -> Vec<Vec<i64>> {
+    fn get_columns(&self) -> Vec<Vec<f64>> {
         (0..self.column).map(|col| self.get_column(col)).collect()
     }
 
@@ -95,7 +95,7 @@ impl Matrix {
     }
 
     /// Apply a function to all elements in the matrix
-    fn apply_fn(&self, fn_def: impl Fn(&i64) -> i64) -> Matrix {
+    fn apply_fn(&self, fn_def: impl Fn(&f64) -> f64) -> Matrix {
         Matrix::new(
             self.values
                 .iter()
@@ -113,63 +113,85 @@ mod test {
     #[test]
     fn build_matrix_from_values() {
         assert!(Matrix::new(vec![]).is_ok());
-        assert!(Matrix::new(vec![vec![0, 0], vec![0, 0]]).is_ok());
-        assert!(Matrix::new(vec![vec![0, 0], vec![0, 0, 0]]).is_err());
+        assert!(Matrix::new(vec![vec![0.0, 0.0], vec![0.0, 0.0]]).is_ok());
+        assert!(Matrix::new(vec![vec![0.0, 0.0], vec![0.0, 0.0, 0.0]]).is_err());
     }
 
     #[test]
     fn zero_matrix() {
         let mat = Matrix::zeros(1, 1);
-        assert_eq!(mat.values, vec![vec![0]]);
+        assert_eq!(mat.values, vec![vec![0.0]]);
 
         let mat = Matrix::zeros(0, 0);
-        assert_eq!(mat.values, Vec::<Vec<i64>>::new());
+        assert_eq!(mat.values, Vec::<Vec<f64>>::new());
 
         let mat = Matrix::zeros(1, 2);
-        assert_eq!(mat.values, vec![vec![0, 0]]);
+        assert_eq!(mat.values, vec![vec![0.0, 0.0]]);
 
         let mat = Matrix::zeros(3, 2);
-        assert_eq!(mat.values, vec![vec![0, 0], vec![0, 0], vec![0, 0]]);
+        assert_eq!(
+            mat.values,
+            vec![vec![0.0, 0.0], vec![0.0, 0.0], vec![0.0, 0.0]]
+        );
     }
 
     #[test]
     fn vector_dot_product() {
-        assert_eq!(Matrix::vector_dot_product(&[1, 2], &[5, 7]), 19);
-        assert_eq!(Matrix::vector_dot_product(&[3, 4], &[6, 8]), 50);
+        assert_eq!(Matrix::vector_dot_product(&[1.0, 2.0], &[5.0, 7.0]), 19.0);
+        assert_eq!(Matrix::vector_dot_product(&[3.0, 4.0], &[6.0, 8.0]), 50.0);
     }
 
     #[test]
     fn get_row() {
-        let mat = Matrix::new(vec![vec![1, 2, 3], vec![2, 3, 4], vec![5, 6, 7]]).unwrap();
-        assert_eq!(mat.get_row(0), vec![1, 2, 3]);
-        assert_eq!(mat.get_row(1), vec![2, 3, 4]);
-        assert_eq!(mat.get_row(2), vec![5, 6, 7]);
+        let mat = Matrix::new(vec![
+            vec![1.0, 2.0, 3.0],
+            vec![2.0, 3.0, 4.0],
+            vec![5.0, 6.0, 7.0],
+        ])
+        .unwrap();
+        assert_eq!(mat.get_row(0), vec![1.0, 2.0, 3.0]);
+        assert_eq!(mat.get_row(1), vec![2.0, 3.0, 4.0]);
+        assert_eq!(mat.get_row(2), vec![5.0, 6.0, 7.0]);
     }
 
     #[test]
     fn get_column() {
-        let mat = Matrix::new(vec![vec![1, 2, 3], vec![2, 3, 4], vec![5, 6, 7]]).unwrap();
-        assert_eq!(mat.get_column(0), vec![1, 2, 5]);
-        assert_eq!(mat.get_column(1), vec![2, 3, 6]);
-        assert_eq!(mat.get_column(2), vec![3, 4, 7]);
+        let mat = Matrix::new(vec![
+            vec![1.0, 2.0, 3.0],
+            vec![2.0, 3.0, 4.0],
+            vec![5.0, 6.0, 7.0],
+        ])
+        .unwrap();
+        assert_eq!(mat.get_column(0), vec![1.0, 2.0, 5.0]);
+        assert_eq!(mat.get_column(1), vec![2.0, 3.0, 6.0]);
+        assert_eq!(mat.get_column(2), vec![3.0, 4.0, 7.0]);
     }
 
     #[test]
     fn transpose() {
-        let mat = Matrix::new(vec![vec![1, 2, 3], vec![2, 3, 4], vec![5, 6, 7]]).unwrap();
+        let mat = Matrix::new(vec![
+            vec![1.0, 2.0, 3.0],
+            vec![2.0, 3.0, 4.0],
+            vec![5.0, 6.0, 7.0],
+        ])
+        .unwrap();
         let transposed_matrix = mat.transpose();
         assert_eq!(
             transposed_matrix.values,
-            vec![vec![1, 2, 5], vec![2, 3, 6], vec![3, 4, 7]]
+            vec![
+                vec![1.0, 2.0, 5.0],
+                vec![2.0, 3.0, 6.0],
+                vec![3.0, 4.0, 7.0]
+            ]
         );
         assert_eq!(transposed_matrix.row, mat.column);
         assert_eq!(transposed_matrix.column, mat.row);
 
-        let mat = Matrix::new(vec![vec![2, 13], vec![-9, 11], vec![3, 17]]).unwrap();
+        let mat = Matrix::new(vec![vec![2.0, 13.0], vec![-9.0, 11.0], vec![3.0, 17.0]]).unwrap();
         let transposed_matrix = mat.transpose();
         assert_eq!(
             transposed_matrix.values,
-            vec![vec![2, -9, 3], vec![13, 11, 17]]
+            vec![vec![2.0, -9.0, 3.0], vec![13.0, 11.0, 17.0]]
         );
         assert_eq!(transposed_matrix.row, mat.column);
         assert_eq!(transposed_matrix.column, mat.row);
@@ -177,28 +199,32 @@ mod test {
 
     #[test]
     fn matrix_multiplication() {
-        let mat_a = Matrix::new(vec![vec![1, 2, 3], vec![4, 5, 6]]).unwrap();
-        let mat_b = Matrix::new(vec![vec![7, 8], vec![9, 10], vec![11, 12]]).unwrap();
+        let mat_a = Matrix::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]).unwrap();
+        let mat_b = Matrix::new(vec![vec![7.0, 8.0], vec![9.0, 10.0], vec![11.0, 12.0]]).unwrap();
         let mat_c = mat_a.mul(mat_b);
         assert_eq!(mat_c.row, 2);
         assert_eq!(mat_c.column, 2);
-        assert_eq!(mat_c.values, vec![vec![58, 64], vec![139, 154]]);
+        assert_eq!(mat_c.values, vec![vec![58.0, 64.0], vec![139.0, 154.0]]);
 
-        let mat_a = Matrix::new(vec![vec![3, 4, 2]]).unwrap();
-        let mat_b =
-            Matrix::new(vec![vec![13, 9, 7, 15], vec![8, 7, 4, 6], vec![6, 4, 0, 3]]).unwrap();
+        let mat_a = Matrix::new(vec![vec![3.0, 4.0, 2.0]]).unwrap();
+        let mat_b = Matrix::new(vec![
+            vec![13.0, 9.0, 7.0, 15.0],
+            vec![8.0, 7.0, 4.0, 6.0],
+            vec![6.0, 4.0, 0.0, 3.0],
+        ])
+        .unwrap();
         let mat_c = mat_a.mul(mat_b);
         assert_eq!(mat_c.row, 1);
         assert_eq!(mat_c.column, 4);
-        assert_eq!(mat_c.values, vec![vec![83, 63, 37, 75]]);
+        assert_eq!(mat_c.values, vec![vec![83.0, 63.0, 37.0, 75.0]]);
     }
 
     #[test]
     fn apply_fn() {
-        let mat_a = Matrix::new(vec![vec![1, 2, 3], vec![4, 5, 6]]).unwrap();
+        let mat_a = Matrix::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]).unwrap();
         assert_eq!(
-            mat_a.apply_fn(|a| a * 2).values,
-            vec![vec![2, 4, 6], vec![8, 10, 12]]
+            mat_a.apply_fn(|a| a * 2.0).values,
+            vec![vec![2.0, 4.0, 6.0], vec![8.0, 10.0, 12.0]]
         )
     }
 }
