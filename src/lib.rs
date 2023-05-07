@@ -39,22 +39,39 @@ impl NeuralNetwork {
         }
 
         if weights.len() != layer_info.len() - 1 {
-            return Err(String::from("weights should be one less than the layer info"));
+            return Err(String::from(
+                "weights should be one less than the layer info",
+            ));
         }
 
         // we need to verify the weight dimensions
-        for (window, weight) in layer_info.windows(2).zip(weights.iter()){
+        for (window, weight) in layer_info.windows(2).zip(weights.iter()) {
             // the weight dimension should be the inverse of the window
             if weight.dim() != (window[1], window[0]) {
                 return Err(String::from("invalid weights for layer"));
             }
-        };
+        }
 
         // all checks pass
         Ok(Self {
             layer_info,
-            weights
+            weights,
         })
+    }
+
+    /// Runs the network on some input
+    fn feed_forward(&self, input: Vec<f64>) -> Vec<f64> {
+        let input_vector = Matrix::new(vec![input]).unwrap().transpose();
+        let output_vector = self.weights.iter().fold(input_vector, |acc, weight| {
+            weight.mul(acc).apply_fn(NeuralNetwork::sigmoid)
+        });
+        output_vector.transpose().get_row(0)
+    }
+
+    /// Sigmoid function
+    fn sigmoid(input: &f64) -> f64 {
+        dbg!(input);
+        1.0 / (1.0 + f64::exp(-input))
     }
 }
 
@@ -79,8 +96,27 @@ mod test {
         // build network with user defined weights
         let network = NeuralNetwork::new_with_weights(
             vec![2, 2],
-            vec![Matrix::new(vec![vec![0.9, 0.3], vec![0.2, 0.3]]).unwrap()]
-        ).unwrap();
+            vec![Matrix::new(vec![vec![0.9, 0.4], vec![0.2, 0.3]]).unwrap()],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn sigmoid() {
+        assert_eq!(NeuralNetwork::sigmoid(&0.0), 0.5);
+        assert_eq!(NeuralNetwork::sigmoid(&3.0), 0.9525741268224334);
+    }
+
+    #[test]
+    fn feed_forward() {
+        let network = NeuralNetwork::new_with_weights(
+            vec![2, 2],
+            vec![Matrix::new(vec![vec![0.9, 0.3], vec![0.2, 0.8]]).unwrap()],
+        )
+        .unwrap();
+        let output = network.feed_forward(vec![1.0, 0.5]);
+        dbg!(&output);
+        assert_eq!(output, vec![0.740774899182154, 0.6456563062257954]);
     }
 }
 
