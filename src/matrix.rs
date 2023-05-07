@@ -1,4 +1,8 @@
-struct Matrix {
+use rand::distributions::Distribution;
+use rand_distr::Normal;
+
+#[derive(Debug)]
+pub(crate) struct Matrix {
     row: usize,
     column: usize,
     values: Vec<Vec<f64>>,
@@ -39,8 +43,18 @@ impl Matrix {
 
     /// Given the row and column count, initializes a matrix
     /// of that size with just 0 values
-    fn zeros(row: usize, column: usize) -> Self {
+    pub(crate) fn zeros(row: usize, column: usize) -> Self {
         Matrix::with_value(row, column, 0.0)
+    }
+
+    /// Generates a matrix with values sampled from a normal distribution
+    /// given the mean and the standard deviation
+    // TODO: potentially add support for a seed
+    pub(crate) fn with_normal_distribution(row: usize, column: usize, mean: f64, std_dev: f64) -> Self {
+        let normal_distribution = Normal::new(mean, std_dev).expect("Invalid parameters");
+        let mut rng = rand::thread_rng();
+        let zero_matrix = Self::zeros(row, column);
+        zero_matrix.apply_fn(|_| normal_distribution.sample(&mut rng))
     }
 
     /// Given two vectors of the same size calculates the dot product
@@ -49,6 +63,11 @@ impl Matrix {
     fn vector_dot_product(a: &[f64], b: &[f64]) -> f64 {
         // assumes a and b are of the same size
         a.iter().zip(b.iter()).map(|(v1, v2)| v1 * v2).sum()
+    }
+
+    /// Returns the dimension of the matrix
+    pub(crate) fn dim(&self) -> (usize, usize) {
+        (self.row, self.column)
     }
 
     /// Return the nth row of a matrix as a vector
@@ -66,6 +85,7 @@ impl Matrix {
         self.values.iter().map(|row| row[index]).collect()
     }
 
+    /// Return all the column vectors
     fn get_columns(&self) -> Vec<Vec<f64>> {
         (0..self.column).map(|col| self.get_column(col)).collect()
     }
@@ -95,7 +115,7 @@ impl Matrix {
     }
 
     /// Apply a function to all elements in the matrix
-    fn apply_fn(&self, fn_def: impl Fn(&f64) -> f64) -> Matrix {
+    fn apply_fn(&self, mut fn_def: impl FnMut(&f64) -> f64) -> Matrix {
         Matrix::new(
             self.values
                 .iter()
@@ -225,6 +245,6 @@ mod test {
         assert_eq!(
             mat_a.apply_fn(|a| a * 2.0).values,
             vec![vec![2.0, 4.0, 6.0], vec![8.0, 10.0, 12.0]]
-        )
+        );
     }
 }

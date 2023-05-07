@@ -1,25 +1,31 @@
 mod matrix;
+use matrix::Matrix;
 
 struct NeuralNetwork {
-    // we need the number of input nodes, number of hidden nodes and number of output node
-    // weights: [(u8, u8)]
+    layer_info: Vec<usize>,
+    weights: Vec<Matrix>,
 }
 
 impl NeuralNetwork {
-    fn new(node_counts: &[u8]) -> Result<Self, String> {
-        if node_counts.len() < 2 {
+    fn new(layer_info: Vec<usize>) -> Result<Self, String> {
+        if layer_info.len() < 2 {
             return Err(String::from("must have both input and output layer"));
         }
 
-        let weights = node_counts
+        let weights = layer_info
             .windows(2)
-            .map(|window| (window[1], window[0]))
-            .collect::<Vec<(u8, u8)>>();
-        dbg!(weights);
+            .map(|window| {
+                let left_layer_count = window[0];
+                let right_layer_count = window[1];
+                let std_dev = 1.0 / (left_layer_count as f64).sqrt();
+                Matrix::with_normal_distribution(right_layer_count, left_layer_count, 0.0, std_dev)
+            })
+            .collect::<Vec<Matrix>>();
 
-        // we need to take the node counts in pairs of two
-        // add code here
-        todo!()
+        Ok(Self {
+            layer_info,
+            weights,
+        })
     }
 }
 
@@ -28,15 +34,18 @@ mod test {
     use crate::NeuralNetwork;
 
     #[test]
-    fn test_neural_net_initialization() {
+    fn neural_net_initialization() {
         // cannot init with less than 2 layers
         // 5 nodes for input layer but no output layer, should error
-        assert!(NeuralNetwork::new(&[5]).is_err());
+        assert!(NeuralNetwork::new(vec![5]).is_err());
 
-        // input layer contains 3 nodes
+        // input layer contains 2 nodes
         // just one hidden layer with 3 nodes
         // output layer contains 3 nodes
-        let network = NeuralNetwork::new(&[3, 3, 3]).unwrap();
+        let network = NeuralNetwork::new(vec![2, 3, 3]).unwrap();
+        assert_eq!(network.weights.len(), 2);
+        assert_eq!(network.weights[0].dim(), (3, 2));
+        assert_eq!(network.weights[1].dim(), (3, 3));
     }
 }
 
