@@ -1,7 +1,7 @@
 use rand::distributions::Distribution;
 use rand_distr::Normal;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Matrix {
     row: usize,
     column: usize,
@@ -62,6 +62,16 @@ impl Matrix {
         zero_matrix.apply_fn(|_| normal_distribution.sample(&mut rng))
     }
 
+    /// Build a multi row single column matrix from a vector
+    pub(crate) fn row_matrix_from_vector(values: Vec<f64>) -> Matrix {
+        Matrix::new(vec![values]).unwrap().transpose()
+    }
+
+    /// Build a row multi column matrix from a vector
+    pub(crate) fn col_matrix_from_vector(values: Vec<f64>) -> Matrix {
+        Matrix::new(vec![values]).unwrap()
+    }
+
     /// Given two vectors of the same size calculates the dot product
     /// Leaves vector length validation to the matrix struct
     /// hence: this method should not be made public
@@ -73,6 +83,11 @@ impl Matrix {
     /// Returns the dimension of the matrix
     pub(crate) fn dim(&self) -> (usize, usize) {
         (self.row, self.column)
+    }
+
+    /// Returns the values of the matrix
+    pub(crate) fn values(&self) -> Vec<Vec<f64>> {
+        self.values.clone()
     }
 
     /// Return the nth row of a matrix as a vector
@@ -103,7 +118,7 @@ impl Matrix {
 
     /// Perform matrix multiplication
     // TODO: can be made more efficient
-    pub(crate) fn mul(&self, other: Matrix) -> Matrix {
+    pub(crate) fn mul(&self, other: &Matrix) -> Matrix {
         Matrix::new(
             self.get_rows()
                 .iter()
@@ -226,7 +241,7 @@ mod test {
     fn matrix_multiplication() {
         let mat_a = Matrix::new(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]).unwrap();
         let mat_b = Matrix::new(vec![vec![7.0, 8.0], vec![9.0, 10.0], vec![11.0, 12.0]]).unwrap();
-        let mat_c = mat_a.mul(mat_b);
+        let mat_c = mat_a.mul(&mat_b);
         assert_eq!(mat_c.row, 2);
         assert_eq!(mat_c.column, 2);
         assert_eq!(mat_c.values, vec![vec![58.0, 64.0], vec![139.0, 154.0]]);
@@ -238,7 +253,7 @@ mod test {
             vec![6.0, 4.0, 0.0, 3.0],
         ])
         .unwrap();
-        let mat_c = mat_a.mul(mat_b);
+        let mat_c = mat_a.mul(&mat_b);
         assert_eq!(mat_c.row, 1);
         assert_eq!(mat_c.column, 4);
         assert_eq!(mat_c.values, vec![vec![83.0, 63.0, 37.0, 75.0]]);

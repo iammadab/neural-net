@@ -61,9 +61,9 @@ impl NeuralNetwork {
 
     /// Runs the network on some input
     fn feed_forward(&self, input: Vec<f64>) -> Vec<f64> {
-        let input_vector = Matrix::new(vec![input]).unwrap().transpose();
+        let input_vector = Matrix::row_matrix_from_vector(input);
         let output_vector = self.weights.iter().fold(input_vector, |acc, weight| {
-            weight.mul(acc).apply_fn(NeuralNetwork::sigmoid)
+            weight.mul(&acc).apply_fn(NeuralNetwork::sigmoid)
         });
         output_vector.transpose().get_row(0)
     }
@@ -72,7 +72,28 @@ impl NeuralNetwork {
         // TODO: need to perform a paper example or error propagation so we can test
         //  use 3 layer test with 3 nodes each
         //  take learning rate into account also
+
+        // first we perform a feed forward to get the outputa
+        let output = self.feed_forward(input);
+        let output_errors = output
+            .iter()
+            .zip(target.iter())
+            .map(|(o, t)| t - o)
+            .collect();
+        let errors = self.back_propagate_errors(Matrix::row_matrix_from_vector(output_errors));
+
         todo!()
+    }
+
+    fn back_propagate_errors(&self, output_error: Matrix) -> Vec<Matrix> {
+        let mut errors = vec![output_error];
+        // we skip the first weight as we don't care about errors for the input node
+        // we reverse the iterator because we are starting from the output layer
+        for weight in self.weights.iter().skip(1).rev() {
+            let error = weight.transpose().mul(&errors[0]);
+            errors.insert(0, error);
+        }
+        errors
     }
 
     /// Sigmoid function
@@ -148,5 +169,22 @@ mod test {
             output,
             vec![0.7263033450139793, 0.7085980724248232, 0.778097059561142,]
         );
+    }
+
+    #[test]
+    fn back_propagate_errors() {
+        let network = NeuralNetwork::new_with_weights(
+            vec![2, 2, 2],
+            vec![
+                Matrix::new(vec![vec![3.0, 2.0], vec![1.0, 7.0]]).unwrap(),
+                Matrix::new(vec![vec![2.0, 3.0], vec![1.0, 4.0]]).unwrap(),
+            ],
+        )
+        .unwrap();
+
+        let errors = network.back_propagate_errors(Matrix::row_matrix_from_vector(vec![0.8, 0.5]));
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[0].values(), vec![vec![2.1], vec![4.4]]);
+        assert_eq!(errors[1].values(), vec![vec![0.8], vec![0.5]]);
     }
 }
