@@ -1,7 +1,8 @@
 use rand::distributions::Distribution;
 use rand_distr::Normal;
+use std::ops::Add;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Matrix {
     row: usize,
     column: usize,
@@ -146,6 +147,46 @@ impl Matrix {
     }
 }
 
+// Addition operation (+) for Matrix
+impl Add for Matrix {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        debug_assert_eq!(self.row, other.row);
+        debug_assert_eq!(self.column, other.column);
+
+        let mut result = self.clone();
+
+        for i in 0..self.row {
+            for j in 0..self.column {
+                result.values[i][j] += other.values[i][j];
+            }
+        }
+
+        result
+    }
+}
+
+// Multiplication operation (*) for Matrix
+impl std::ops::Mul for Matrix {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self {
+        debug_assert_eq!(self.row, other.row);
+        debug_assert_eq!(self.column, other.column);
+
+        let mut result = self.clone();
+
+        for i in 0..self.row {
+            for j in 0..self.column {
+                result.values[i][j] *= other.values[i][j];
+            }
+        }
+
+        result
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::matrix::Matrix;
@@ -257,6 +298,25 @@ mod test {
         assert_eq!(mat_c.row, 1);
         assert_eq!(mat_c.column, 4);
         assert_eq!(mat_c.values, vec![vec![83.0, 63.0, 37.0, 75.0]]);
+    }
+
+    #[test]
+    fn element_wise_operations() {
+        // element wise multiplication
+        let mat_a = Matrix::row_matrix_from_vector(vec![1.0, 2.0]);
+        let mat_b = Matrix::row_matrix_from_vector(vec![2.0, 4.0]);
+        assert_eq!(
+            mat_a * mat_b,
+            Matrix::row_matrix_from_vector(vec![2.0, 8.0])
+        );
+
+        // element wise addition
+        let mat_a = Matrix::row_matrix_from_vector(vec![1.0, 2.0]);
+        let mat_b = Matrix::row_matrix_from_vector(vec![2.0, 4.0]);
+        assert_eq!(
+            mat_a + mat_b,
+            Matrix::row_matrix_from_vector(vec![3.0, 6.0])
+        );
     }
 
     #[test]

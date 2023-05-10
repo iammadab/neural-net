@@ -60,12 +60,21 @@ impl NeuralNetwork {
     }
 
     /// Runs the network on some input
-    fn feed_forward(&self, input: Vec<f64>) -> Vec<f64> {
+    fn feed_forward(&self, input: Vec<f64>) -> Vec<Matrix> {
         let input_vector = Matrix::row_matrix_from_vector(input);
-        let output_vector = self.weights.iter().fold(input_vector, |acc, weight| {
-            weight.mul(&acc).apply_fn(NeuralNetwork::sigmoid)
-        });
-        output_vector.transpose().get_row(0)
+        let mut result = vec![input_vector];
+        for weight in &self.weights {
+            result.push(
+                weight
+                    .mul(result.last().expect("not empty"))
+                    .apply_fn(NeuralNetwork::sigmoid),
+            )
+        }
+        result
+        // let output_vector = self.weights.iter().fold(input_vector, |acc, weight| {
+        //     weight.mul(&acc).apply_fn(NeuralNetwork::sigmoid)
+        // });
+        // output_vector.transpose().get_row(0)
     }
 
     fn train(&self, input: Vec<f64>, target: Vec<f64>, learning_rate: f64) {
@@ -73,16 +82,21 @@ impl NeuralNetwork {
         //  use 3 layer test with 3 nodes each
         //  take learning rate into account also
 
-        // first we perform a feed forward to get the outputa
-        let output = self.feed_forward(input);
-        let output_errors = output
-            .iter()
-            .zip(target.iter())
-            .map(|(o, t)| t - o)
-            .collect();
-        let errors = self.back_propagate_errors(Matrix::row_matrix_from_vector(output_errors));
+        todo!();
 
-        todo!()
+        // first we perform a feed forward to get the outputa
+        // let outputs = self.feed_forward(input);
+        // need to apply a target subtraction on all the output elements
+        // the output matrix is a row matrix
+        // we want the error matrix to be exactly the same
+        // now it would have made sense to have the concept of a vector
+        // need to implement scalar mul, that checks that the matrix are of the same size
+        // let output_errors = output
+        //     .iter()
+        //     .zip(target.iter())
+        //     .map(|(o, t)| t - o)
+        //     .collect();
+        // let errors = self.back_propagate_errors(Matrix::row_matrix_from_vector(output_errors));
     }
 
     fn back_propagate_errors(&self, output_error: Matrix) -> Vec<Matrix> {
@@ -143,7 +157,10 @@ mod test {
         )
         .unwrap();
         let output = network.feed_forward(vec![1.0, 0.5]);
-        assert_eq!(output, vec![0.740774899182154, 0.6456563062257954]);
+        assert_eq!(
+            output.last().unwrap().values(),
+            Matrix::row_matrix_from_vector(vec![0.740774899182154, 0.6456563062257954]).values()
+        );
 
         // Three layer
         let network = NeuralNetwork::new_with_weights(
@@ -166,8 +183,13 @@ mod test {
         .unwrap();
         let output = network.feed_forward(vec![0.9, 0.1, 0.8]);
         assert_eq!(
-            output,
-            vec![0.7263033450139793, 0.7085980724248232, 0.778097059561142,]
+            output.last().unwrap().values(),
+            Matrix::row_matrix_from_vector(vec![
+                0.7263033450139793,
+                0.7085980724248232,
+                0.778097059561142
+            ])
+            .values()
         );
     }
 
