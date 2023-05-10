@@ -1,6 +1,6 @@
 use rand::distributions::Distribution;
 use rand_distr::Normal;
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Matrix {
@@ -160,6 +160,25 @@ impl Add for Matrix {
         for i in 0..self.row {
             for j in 0..self.column {
                 result.values[i][j] += other.values[i][j];
+            }
+        }
+
+        result
+    }
+}
+
+impl Sub for Matrix {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        debug_assert_eq!(self.row, other.row);
+        debug_assert_eq!(self.column, other.column);
+
+        let mut result = self.clone();
+
+        for i in 0..self.row {
+            for j in 0..self.column {
+                result.values[i][j] -= other.values[i][j];
             }
         }
 

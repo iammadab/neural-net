@@ -59,7 +59,17 @@ impl NeuralNetwork {
         })
     }
 
+    /// Performs a feed forward but only returns the final output
+    fn query(&self, input: Vec<f64>) -> Vec<f64> {
+        self.feed_forward(input)
+            .last()
+            .expect("must have output")
+            .transpose()
+            .get_row(0)
+    }
+
     /// Runs the network on some input
+    /// Returns the output from each layer (input layer inclusive)
     fn feed_forward(&self, input: Vec<f64>) -> Vec<Matrix> {
         let input_vector = Matrix::row_matrix_from_vector(input);
         let mut result = vec![input_vector];
@@ -71,34 +81,73 @@ impl NeuralNetwork {
             )
         }
         result
-        // let output_vector = self.weights.iter().fold(input_vector, |acc, weight| {
-        //     weight.mul(&acc).apply_fn(NeuralNetwork::sigmoid)
-        // });
-        // output_vector.transpose().get_row(0)
     }
 
-    fn train(&self, input: Vec<f64>, target: Vec<f64>, learning_rate: f64) {
+    fn train(&mut self, input: Vec<f64>, target: Vec<f64>, learning_rate: f64) {
+        let weight_deltas = self.get_weight_deltas(input, target, learning_rate);
+        let updated_weights = self
+            .weights
+            .iter()
+            .zip(weight_deltas)
+            .map(|(w, wd)| w.clone() + wd)
+            .collect::<Vec<Matrix>>();
+        self.weights = updated_weights;
+    }
+
+    fn get_weight_deltas(
+        &self,
+        input: Vec<f64>,
+        target: Vec<f64>,
+        learning_rate: f64,
+    ) -> Vec<Matrix> {
         // TODO: need to perform a paper example or error propagation so we can test
         //  use 3 layer test with 3 nodes each
         //  take learning rate into account also
 
-        todo!();
+        dbg!(&input);
 
         // first we perform a feed forward to get the outputa
-        // let outputs = self.feed_forward(input);
+        let outputs = self.feed_forward(input);
+        // dbg!(&outputs);
         // need to apply a target subtraction on all the output elements
         // the output matrix is a row matrix
         // we want the error matrix to be exactly the same
         // now it would have made sense to have the concept of a vector
         // need to implement scalar mul, that checks that the matrix are of the same size
-        // let output_errors = output
-        //     .iter()
-        //     .zip(target.iter())
-        //     .map(|(o, t)| t - o)
-        //     .collect();
-        // let errors = self.back_propagate_errors(Matrix::row_matrix_from_vector(output_errors));
+        let targets = Matrix::row_matrix_from_vector(target);
+
+        dbg!(outputs.last());
+
+        let output_errors = targets - outputs.last().unwrap().clone();
+        // let output_errors = Matrix::row_matrix_from_vector(vec![0.8, 0.5]);
+        let errors = self.back_propagate_errors(output_errors);
+        // dbg!(&errors);
+
+        // the goal is to get some kind of change in weight
+        // we need 1 - all outputs
+        let outputs_from_1 = outputs
+            .iter()
+            .map(|out| out.apply_fn(|v| 1.0 - v))
+            .collect::<Vec<Matrix>>();
+        // dbg!(&outputs_from_1);
+
+        let mut weight_updates = vec![];
+
+        for i in (1..outputs.len()).rev() {
+            let a = errors.get(i - 1).unwrap().clone()
+                * outputs.get(i - 1).unwrap().clone()
+                * outputs_from_1.get(i - 1).unwrap().clone();
+            let b = outputs[i - 1].clone().transpose();
+            let delta = a.mul(&b).apply_fn(|f| f * learning_rate);
+            weight_updates.push(delta)
+        }
+
+        // dbg!(&weight_updates);
+
+        weight_updates
     }
 
+    /// Returns the error for each layer expect the input layer
     fn back_propagate_errors(&self, output_error: Matrix) -> Vec<Matrix> {
         let mut errors = vec![output_error];
         // we skip the first weight as we don't care about errors for the input node
@@ -149,18 +198,15 @@ mod test {
     }
 
     #[test]
-    fn feed_forward() {
+    fn query() {
         // Two layers
         let network = NeuralNetwork::new_with_weights(
             vec![2, 2],
             vec![Matrix::new(vec![vec![0.9, 0.3], vec![0.2, 0.8]]).unwrap()],
         )
         .unwrap();
-        let output = network.feed_forward(vec![1.0, 0.5]);
-        assert_eq!(
-            output.last().unwrap().values(),
-            Matrix::row_matrix_from_vector(vec![0.740774899182154, 0.6456563062257954]).values()
-        );
+        let output = network.query(vec![1.0, 0.5]);
+        assert_eq!(output, vec![0.740774899182154, 0.6456563062257954]);
 
         // Three layer
         let network = NeuralNetwork::new_with_weights(
@@ -181,15 +227,10 @@ mod test {
             ],
         )
         .unwrap();
-        let output = network.feed_forward(vec![0.9, 0.1, 0.8]);
+        let output = network.query(vec![0.9, 0.1, 0.8]);
         assert_eq!(
-            output.last().unwrap().values(),
-            Matrix::row_matrix_from_vector(vec![
-                0.7263033450139793,
-                0.7085980724248232,
-                0.778097059561142
-            ])
-            .values()
+            output,
+            vec![0.7263033450139793, 0.7085980724248232, 0.778097059561142]
         );
     }
 
@@ -208,5 +249,45 @@ mod test {
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0].values(), vec![vec![2.1], vec![4.4]]);
         assert_eq!(errors[1].values(), vec![vec![0.8], vec![0.5]]);
+    }
+
+    #[test]
+    fn get_weight_deltas() {
+        let network = NeuralNetwork::new_with_weights(
+            vec![2, 2, 2],
+            vec![
+                Matrix::new(vec![vec![3.0, 2.0], vec![1.0, 7.0]]).unwrap(),
+                Matrix::new(vec![vec![2.0, 3.0], vec![1.0, 4.0]]).unwrap(),
+            ],
+        )
+        .unwrap();
+        let targets = vec![1.0, 2.0];
+        let weight_deltas = network.get_weight_deltas(vec![3.0, 2.0], targets, 0.01);
+        let updated_weights = network
+            .weights
+            .iter()
+            .zip(weight_deltas)
+            .map(|(w, wd)| w.clone() + wd)
+            .collect::<Vec<Matrix>>();
+        dbg!(updated_weights);
+    }
+
+    #[test]
+    fn train_or_gate() {
+        let mut network = NeuralNetwork::new(vec![2, 2]).unwrap();
+        let training_data = vec![
+            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
+            (vec![1.0, 1.0], vec![0.99999999, 0.00000001]),
+            (vec![1.0, 0.0], vec![0.99999999, 0.00000001]),
+            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
+            (vec![0.0, 1.0], vec![0.99999999, 0.00000001]),
+            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
+            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
+        ];
+        for i in 0..100 {
+            for (input, target) in &training_data {
+                network.train(input.clone(), target.clone(), 0.000001);
+            }
+        }
     }
 }
