@@ -1,4 +1,4 @@
-# Neural Network Project
+# Neural Network
 
 This project implements a neural network with flexible layer architecture. The neural network is defined by the `NeuralNetwork` struct, which contains the layer information and weights.
 
