@@ -84,67 +84,59 @@ impl NeuralNetwork {
         result
     }
 
+    /// Given a training sample, updates the weight of the network to minimize the error
     fn train(&mut self, input: Vec<f64>, target: Vec<f64>, learning_rate: f64) {
         let weight_deltas = self.get_weight_deltas(input, target, learning_rate);
         let updated_weights = self
             .weights
             .iter()
-            .zip(weight_deltas.iter().rev())
-            .map(|(w, wd)|
-                w.clone() + wd.clone()
-            )
+            .zip(weight_deltas)
+            .map(|(w, wd)| w.clone() + wd.clone())
             .collect::<Vec<Matrix>>();
         self.weights = updated_weights;
     }
 
+    /// Performs gradient descent to figure out how to update the weights of the network
+    /// Returns matrix update values for each weight matrix
     fn get_weight_deltas(
         &self,
         input: Vec<f64>,
         target: Vec<f64>,
         learning_rate: f64,
     ) -> Vec<Matrix> {
-        // first we perform a feed forward to get the outputa
+        // perform feed forward to get the output
         let outputs = self.feed_forward(input);
-        // dbg!(&outputs);
-        // need to apply a target subtraction on all the output elements
-        // the output matrix is a row matrix
-        // we want the error matrix to be exactly the same
-        // now it would have made sense to have the concept of a vector
-        // need to implement scalar mul, that checks that the matrix are of the same size
         let targets = Matrix::row_matrix_from_vector(target);
 
+        // compare the output to the target list to figure out the error
         let output_errors = targets - outputs.last().unwrap().clone();
 
-        // let output_errors = Matrix::row_matrix_from_vector(vec![0.8, 0.5]);
+        // back-propagate to figure out the error for each layer
         let errors = self.back_propagate_errors(output_errors);
 
-        // the goal is to get some kind of change in weight
-        // we need 1 - all outputs
-        let outputs_from_1 = outputs
+        // for gradient descent, we need another matrix that subtract all
+        // the output values from 1
+        let one_minus_outputs = outputs
             .iter()
             .map(|out| out.apply_fn(|v| 1.0 - v))
             .collect::<Vec<Matrix>>();
-        // dbg!(&outputs_from_1);
 
         let mut weight_updates = vec![];
 
-
-        // To calc a, we need the final output and the final error
-        // we only keep track of 2 errors
-        // we keep track of 3 outputs
-
+        // update each weight connection matrix
         for i in (1..outputs.len()).rev() {
-            let out_error = errors.get(i - 1).unwrap().clone();
-            let final_out = outputs.get(i).unwrap().clone();
-            let final_from_1 = outputs_from_1.get(i).unwrap().clone();
+            let layer_error = errors.get(i - 1).unwrap().clone();
+            let layer_output = outputs.get(i).unwrap().clone();
+            let one_minus_layer_output = one_minus_outputs.get(i).unwrap().clone();
 
-
-            let a = out_error * final_out * final_from_1;
-
+            let a = layer_error * layer_output * one_minus_layer_output;
             let b = outputs[i - 1].clone().transpose();
+
             let delta = a.mul(&b).apply_fn(|f| f * learning_rate);
 
-            weight_updates.push(delta)
+            // we insert to the front of the list because the updates
+            // were made from the back (rev)
+            weight_updates.insert(0, delta)
         }
 
         weight_updates
@@ -284,11 +276,7 @@ mod test {
         let output = network.query(vec![1.0, 0.5, -1.5]);
         assert_eq!(
             output,
-            vec![
-                0.5019062063805478,
-                0.35040324838192555,
-                0.28482826169784886
-            ]
+            vec![0.5019062063805478, 0.35040324838192555, 0.28482826169784886]
         );
     }
 }
