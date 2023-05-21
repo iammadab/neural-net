@@ -1,4 +1,5 @@
 mod matrix;
+
 use matrix::Matrix;
 
 struct NeuralNetwork {
@@ -88,8 +89,10 @@ impl NeuralNetwork {
         let updated_weights = self
             .weights
             .iter()
-            .zip(weight_deltas)
-            .map(|(w, wd)| w.clone() + wd)
+            .zip(weight_deltas.iter().rev())
+            .map(|(w, wd)|
+                w.clone() + wd.clone()
+            )
             .collect::<Vec<Matrix>>();
         self.weights = updated_weights;
     }
@@ -100,12 +103,6 @@ impl NeuralNetwork {
         target: Vec<f64>,
         learning_rate: f64,
     ) -> Vec<Matrix> {
-        // TODO: need to perform a paper example or error propagation so we can test
-        //  use 3 layer test with 3 nodes each
-        //  take learning rate into account also
-
-        dbg!(&input);
-
         // first we perform a feed forward to get the outputa
         let outputs = self.feed_forward(input);
         // dbg!(&outputs);
@@ -116,12 +113,10 @@ impl NeuralNetwork {
         // need to implement scalar mul, that checks that the matrix are of the same size
         let targets = Matrix::row_matrix_from_vector(target);
 
-        dbg!(outputs.last());
-
         let output_errors = targets - outputs.last().unwrap().clone();
+
         // let output_errors = Matrix::row_matrix_from_vector(vec![0.8, 0.5]);
         let errors = self.back_propagate_errors(output_errors);
-        // dbg!(&errors);
 
         // the goal is to get some kind of change in weight
         // we need 1 - all outputs
@@ -133,16 +128,24 @@ impl NeuralNetwork {
 
         let mut weight_updates = vec![];
 
+
+        // To calc a, we need the final output and the final error
+        // we only keep track of 2 errors
+        // we keep track of 3 outputs
+
         for i in (1..outputs.len()).rev() {
-            let a = errors.get(i - 1).unwrap().clone()
-                * outputs.get(i - 1).unwrap().clone()
-                * outputs_from_1.get(i - 1).unwrap().clone();
+            let out_error = errors.get(i - 1).unwrap().clone();
+            let final_out = outputs.get(i).unwrap().clone();
+            let final_from_1 = outputs_from_1.get(i).unwrap().clone();
+
+
+            let a = out_error * final_out * final_from_1;
+
             let b = outputs[i - 1].clone().transpose();
             let delta = a.mul(&b).apply_fn(|f| f * learning_rate);
+
             weight_updates.push(delta)
         }
-
-        // dbg!(&weight_updates);
 
         weight_updates
     }
@@ -253,41 +256,39 @@ mod test {
 
     #[test]
     fn get_weight_deltas() {
-        let network = NeuralNetwork::new_with_weights(
-            vec![2, 2, 2],
+        let mut network = NeuralNetwork::new_with_weights(
+            vec![3, 3, 3],
             vec![
-                Matrix::new(vec![vec![3.0, 2.0], vec![1.0, 7.0]]).unwrap(),
-                Matrix::new(vec![vec![2.0, 3.0], vec![1.0, 4.0]]).unwrap(),
+                Matrix::new(vec![
+                    vec![-0.21787096, 0.09627831, 0.39421614],
+                    vec![1.10930855, -0.11375925, -0.43871621],
+                    vec![-1.20612302, -0.02099995, -0.70306782],
+                ])
+                .unwrap(),
+                Matrix::new(vec![
+                    vec![-0.82497876, -0.09845416, 0.67026903],
+                    vec![-0.61264944, -0.81319795, 0.48471442],
+                    vec![-0.05751839, -1.00243301, -0.17735394],
+                ])
+                .unwrap(),
             ],
         )
         .unwrap();
-        let targets = vec![1.0, 2.0];
-        let weight_deltas = network.get_weight_deltas(vec![3.0, 2.0], targets, 0.01);
-        let updated_weights = network
-            .weights
-            .iter()
-            .zip(weight_deltas)
-            .map(|(w, wd)| w.clone() + wd)
-            .collect::<Vec<Matrix>>();
-        dbg!(updated_weights);
-    }
+        let output = network.query(vec![1.0, 0.5, -1.5]);
 
-    #[test]
-    fn train_or_gate() {
-        let mut network = NeuralNetwork::new(vec![2, 2]).unwrap();
-        let training_data = vec![
-            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
-            (vec![1.0, 1.0], vec![0.99999999, 0.00000001]),
-            (vec![1.0, 0.0], vec![0.99999999, 0.00000001]),
-            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
-            (vec![0.0, 1.0], vec![0.99999999, 0.00000001]),
-            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
-            (vec![0.0, 0.0], vec![0.00000001, 0.99999999]),
-        ];
-        for i in 0..100 {
-            for (input, target) in &training_data {
-                network.train(input.clone(), target.clone(), 0.000001);
-            }
-        }
+        let weight_deltas =
+            network.get_weight_deltas(vec![1.0, 0.5, 0.1], vec![0.9, 0.8, 0.7], 0.3);
+
+        network.train(vec![1.0, 0.5, 0.1], vec![0.9, 0.8, 0.7], 0.3);
+
+        let output = network.query(vec![1.0, 0.5, -1.5]);
+        assert_eq!(
+            output,
+            vec![
+                0.5019062063805478,
+                0.35040324838192555,
+                0.28482826169784886
+            ]
+        );
     }
 }
